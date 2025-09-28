@@ -1,0 +1,40 @@
+Starter code for assignment 2
+
+
+# To Do
+    
+    - Create a hostfile (with available nodes) everytime the program is run
+
+    Start with the sequential version.
+    -Load a BMP image using the provided library.
+    -Convert it to grayscale.
+    -Write a simple function to apply the Emboss filter and Sobel filter one pixel at a time (loop through image pixels).
+    -Test it on a small BMP image to check it works.
+    -Save the result as new BMP files.
+
+    Write a parallel program (C/C++ with MPI + OpenMP):
+    -Modify your program so that the master process splits the image into tiles and sends them to worker processes.
+    -Inside each process, use OpenMP to parallelize the pixel operations (loops).
+    -Collect the processed tiles back and save the full image.
+    -Master collects results and saves the image.
+    -algorithm must account for potential missing pixels.
+
+    -Optimize your parallel code:
+    -Try different tile sizes (e.g., rows vs blocks).
+    -Avoid recomputing values.
+    -Reduce communication overhead.
+    -Think of something to make it faster (e.g., reduce communication between processes, balance the tile sizes better, avoid redundant calculations).
+    -Show performance improvements (measure runtime with different image sizes and numbers of processes).
+
+    Compare runtimes:
+    -Run your sequential version.
+    -Run your parallel version(s).
+    -Run parallel version + openMP version
+    -Compare the results
+    
+
+
+# Report
+ - Once this version is implemented, you should propose (at least one) optimization to your code. 
+    Each optimization should be backed up by evaluations, against the initial parallel version
+

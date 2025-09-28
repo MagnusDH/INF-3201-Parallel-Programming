@@ -1,6 +1,7 @@
 #include "bmp.h"
 
-void GetSize(const char* filepath,int* width, int *height){
+//Retrieves the given image -> height and width and stores them in given pointers
+void GetSize(const char* filepath, int* width, int *height){
 	bmp_img img;
 	bmp_img_read (&img, filepath);
     *width=img.img_header.biWidth;
@@ -9,8 +10,8 @@ void GetSize(const char* filepath,int* width, int *height){
 }
 
 
-
-void LoadRegion(const char* filepath,const int x,const int y,const int width,const int height,RGB* region){
+//Loads every pixel in a given region an image (from (x,y) to (width,height)) and stores it in the given memory location
+void LoadRegion(const char* filepath, const int x, const int y, const int width, const int height, RGB* region){
     bmp_img img;
 	bmp_img_read (&img, filepath);
     // Load region
@@ -23,6 +24,7 @@ void LoadRegion(const char* filepath,const int x,const int y,const int width,con
     }
     bmp_img_free (&img);
 }
+
 
 void WriteRegion(const char* filepath,const int x,const int y,const int width,const int height,RGB* region){
     bmp_img img;
@@ -38,6 +40,7 @@ void WriteRegion(const char* filepath,const int x,const int y,const int width,co
     bmp_img_write (&img, filepath);
     bmp_img_free (&img);
 }
+
 
 void CreateBMP(const char* filepath,const int width,const int height){
     bmp_img img;

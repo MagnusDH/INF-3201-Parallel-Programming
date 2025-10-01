@@ -53,15 +53,10 @@ MPI tags:
 0 = something wrong
 1 = master process sends info about a tile
 2 = master process sends array of pixels
-3 = worker send info about filtered tile back to master
-4 = worker sends array of filtered pixels back to master
 
+3 = worker sends array of sobel filtered pixels back to master
+4 = worker sends array of emboss filtered pixels back to master
 
-
-
-4 = complete block/tile data from worker with Sobel filter
-5 = complete block/tile data from worker with Emboss filter
-6 = image is complete, terminate
 */
 
 

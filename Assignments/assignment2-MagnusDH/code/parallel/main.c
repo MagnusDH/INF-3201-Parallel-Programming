@@ -26,7 +26,7 @@ typedef struct {
 //Contains info about a whole tile
 typedef struct {
     int tile_number;
-    int filter_to_apply;            //1 for sobel, 2 for emboss
+    // int filter_to_apply;            //1 for sobel, 2 for emboss
     int width;                      //How many pixels in width the tile is
     int height;                     //How many rows the tile is
     int top_ghost;                  //1 if top ghost row is included, 0 if not 
@@ -317,7 +317,7 @@ void master_process(int world_rank, int world_size)
     int tiles_per_process = height / num_processes;
 
     
-    int tile_number = 0;        //Number for a sent/recieved tile
+    int tile_number = 1;        //Number for a sent/recieved tile
     int sent_tiles = 0;         //Counter for how many tiles have been sent
     
     //Send tiles to each process, excluded process 0
@@ -330,7 +330,7 @@ void master_process(int world_rank, int world_size)
         if(process == 1){
             TileInfo tile;
             tile.tile_number = tile_number;
-            tile.filter_to_apply = 1;
+            // tile.filter_to_apply = 1;
             tile.width = width;
             tile.height = tiles_per_process+1;  //add one row
             tile.top_ghost = 0;                 //Tile does not have a top ghost row
@@ -377,6 +377,7 @@ void master_process(int world_rank, int world_size)
                 MPI_COMM_WORLD      //communicator (usually MPI_COMM_WORLD)
             );
 
+
             //decrement row_counter
             row_counter--;
 
@@ -386,63 +387,11 @@ void master_process(int world_rank, int world_size)
             //Increment sent_tiles
             sent_tiles++;
         }
+    
         
         //Last process needs 80 rows + 1 ghost row
         if(process == num_processes-1){
             continue;
-            // TileInfo tile;
-            // tile.tile_number = tile_number;
-            // tile.filter_to_apply = 1;
-            // tile.width = width;
-            // tile.height = tiles_per_process+1;  //add one row
-            // tile.top_ghost = 1;                 //Tile does not have a top ghost row
-            // tile.bottom_ghost = 0;              //Tile has a bottom ghost row
-            // tile.pixels = malloc((tiles_per_process+1)*width * sizeof(PixelInfo));  //Allocate memory
-            
-            // //send 80 rows + 1 ghost row
-            // int column_counter = 0;
-            // for(int i=0; i<(tiles_per_process+1)*width; i++){
-            //     //create array
-            //     tile.pixels[i].row = row_counter;
-            //     tile.pixels[i].col = column_counter;
-            //     tile.pixels[i].red = sobel[(row_counter*width) + column_counter].red;
-            //     tile.pixels[i].green = sobel[(row_counter*width) + column_counter].green;
-            //     tile.pixels[i].blue = sobel[(row_counter*width) + column_counter].blue;
-                
-            //     //Increment column counter
-            //     column_counter++;
-
-            //     //Increment row_counter and reset column_counter if full width has been looped over
-            //     if(column_counter % width == 0){
-            //         row_counter++;
-            //         column_counter = 0;
-            //     }
-            // }
-
-            // //Send info about pixels to process
-            // MPI_Send(
-            //     &tile,              //Pointer to the data I want to send
-            //     sizeof(TileInfo),   //number of items in buf
-            //     MPI_BYTE,           //The datatype of what I am sending
-            //     process,            //The ID/world_rank of the process I am sending to
-            //     1,                  //Tag
-            //     MPI_COMM_WORLD      //communicator (usually MPI_COMM_WORLD)
-            // );
-
-            // //Send actuall pixels to process
-            // MPI_Send(
-            //     tile.pixels,              //Pointer to the data I want to send
-            //     (tiles_per_process+1)*width * sizeof(PixelInfo),   //number of items in buf
-            //     MPI_BYTE,           //The datatype of what I am sending
-            //     process,            //The ID/world_rank of the process I am sending to
-            //     2,                  //Tag
-            //     MPI_COMM_WORLD      //communicator (usually MPI_COMM_WORLD)
-            // );
-
-            // //decrement row_counter
-            // row_counter--;
-            //Increment tile_number
-            // tile_number++;
         }
         
 
@@ -508,113 +457,97 @@ void master_process(int world_rank, int world_size)
         }
     }
 
-
-
+    //RECIEVE TILES AND ASSEMBLE IMAGE
     int recieved_sobel_tiles = 0;
     int recieved_emboss_tiles = 0;
 
     while(SOBEL_COMPLETE != true || EMBOSS_COMPLETE != true){
 
-        //Recieve filtered tiles
-        TileInfo filtered_tile;
-        MPI_Recv(
-            &filtered_tile,         // pointer to receive buffer
-            sizeof(TileInfo),       // size in bytes (must match the send)
-            MPI_BYTE,               // datatype
-            MPI_ANY_SOURCE,         // source rank
-            MPI_ANY_TAG,            // tag (must match send)
-            MPI_COMM_WORLD,
-            MPI_STATUS_IGNORE
-        );
+        //Recieve filtered tile
+        MPI_Status message_status;
 
-        //Allocate memory for pixel array based on num_pixels
-        filtered_tile.pixels = malloc((filtered_tile.height*filtered_tile.width) * sizeof(PixelInfo));
+        //Allocate memory for filtered pixels
+        filtered_pixels = malloc(tiles_per_process * width * sizeof(PixelInfo));
 
         //Receive filtered pixel data
         MPI_Recv(
-            filtered_tile.pixels, 
-            (filtered_tile.height*filtered_tile.width) * sizeof(PixelInfo), 
+            filtered_pixels, 
+            tiles_per_process * width * sizeof(PixelInfo), 
             MPI_BYTE, 
             MPI_ANY_SOURCE, 
             MPI_ANY_TAG, 
             MPI_COMM_WORLD, 
-            MPI_STATUS_IGNORE
+            &message_status            //Status of message
         );
 
 
-        //If tag == sobel
-            //recieved_sobel_tiles++;
-            //find tile number of recieved tile
-            //Place tile where is belongs in array
-            //if(recieved_sobel_tiles == sent_tiles)
-                //SOBEL_COMPLETE = true;
-
-
-        //If tag == embos
-            //recieved_emboss_tiles++;
-            //find tile number of recieved tile
-            //Place tile where is belongs in array
-            //if(recieved_emboss_tiles == sent_tiles)
-                //EMBOSS_COMPLETE = true;
-    
-
-    //Save images
-
-
-
-        printf("MASTER HAS RECIEVED:\n");
-        printf("tile number: %d\n", filtered_tile.tile_number);
-        printf("width: %d\n", filtered_tile.width);
-        printf("height: %d\n", filtered_tile.height);
-
-        //Overwrite pixel values in original image with filtered ones
-        for(int i=0; i<(filtered_tile.width * filtered_tile.height); i++){
-            sobel[i].red = filtered_tile.pixels[i].red;
-            sobel[i].green = filtered_tile.pixels[i].green;
-            sobel[i].blue = filtered_tile.pixels[i].blue;
+        //If tag is sobel
+        if(message_status.MPI_TAG == 3){
+            //Replace original image pixels with filtered pixels
+            for(int i=0; i<tiles_per_process * width; i++){
+                int current_index = filtered_pixels[i].row * filtered_pixels[i].col;
+                sobel[current_index].red = filtered_pixels[current_index].red;
+                sobel[current_index].green = filtered_pixels[current_index].green;
+                sobel[current_index].blue = filtered_pixels[current_index].blue;
+            }
+            
+            //Increment recieved sobel tiles
+            recieved_sobel_tiles++;
+            
+            //If we have recieved all sobel tiles
+            if(recieved_sobel_tiles == sent_tiles){
+                SOBEL_COMPLETE = true;
+            }
         }
-        
-        if(recieved_tiles == sent_tiles){
-            SOBEL_COMPLETE = true;
+
+        //If tag is emboss
+        if(message_status.MPI_TAG == 4){
+            //Replace original image pixels with filtered pixels
+            for(int i=0; i<tiles_per_process * width; i++){
+                int current_index = filtered_pixels[i].row * filtered_pixels[i].col;
+                emboss[current_index].red = filtered_pixels[current_index].red;
+                emboss[current_index].green = filtered_pixels[current_index].green;
+                emboss[current_index].blue = filtered_pixels[current_index].blue;
+            }
+            
+            //Increment recieved sobel tiles
+            recieved_emboss_tiles++;
+            
+            //If we have recieved all sobel tiles
+            if(recieved_emboss_tiles == sent_tiles){
+                EMBOSS_COMPLETE = true;
+            }
         }
     }
 
 
-    const char *outsobel="sobel.bmp";
-    const char *outemboss="emboss.bmp";
+    //Save images
+    // const char *outsobel="sobel.bmp";
+    // const char *outemboss="emboss.bmp";
     //Create new image
-    CreateBMP(outsobel,width,height);
-    //Write filtered region to new image
-    WriteRegion(outsobel,0,0,width, height,sobel);
+    CreateBMP(sobel,width,height);
+    // //Write filtered region to new image
+    // WriteRegion(outsobel,0,0,width, height,sobel);
 
         
-    //     CreateBMP(outemboss,width,height);
-    //     WriteRegion(outemboss,0,0,width, height,emboss);
+    CreateBMP(emboss,width,height);
+    // //     WriteRegion(outemboss,0,0,width, height,emboss);
     
     //Free memory
     free(sobel);
     free(emboss);
 
-    // //Apply Emboss filter
-    // while(EMBOSS_COMPLETE != true){
-    
-    // }
-    
-}
-
-    
-    
-    
+    return;
+}    
     
 
 void worker_process(int world_rank)
 {
-
     //First process recieves 81 tiles
     if(world_rank == 1){
-        TileInfo recieved_tile_info;
-
+        
         //Recieve info about tile
+        TileInfo recieved_tile_info;
         MPI_Recv(
             &recieved_tile_info,    // pointer to receive buffer
             sizeof(TileInfo),       // size in bytes (must match the send)
@@ -634,11 +567,10 @@ void worker_process(int world_rank)
         // printf("bottom_ghost: %d\n", recieved_tile_info.bottom_ghost);
 
         
-        // Allocate memory for pixel array based on num_pixels
+        //Allocate memory for pixel array based on num_pixels
         recieved_tile_info.pixels = malloc((recieved_tile_info.height*recieved_tile_info.width) * sizeof(PixelInfo));
 
-
-        // Receive pixel data
+        //Receive pixel data
         MPI_Recv(
             recieved_tile_info.pixels, 
             (recieved_tile_info.height*recieved_tile_info.width) * sizeof(PixelInfo), 
@@ -653,30 +585,34 @@ void worker_process(int world_rank)
         //     printf("(%d,%d) - ", recieved_tile_info.pixels[i].row, recieved_tile_info.pixels[i].col);
         // }
 
+        //Create two buffers for sobel and emboss filtered pixels
+        PixelInfo *sobel_filtered = malloc(recieved_tile_info.width*recieved_tile_info.height*sizeof(PixelInfo));
+        PixelInfo *emboss_filtered = malloc(recieved_tile_info.width*recieved_tile_info.height*sizeof(PixelInfo));
 
-        //Apply either Sobel or Emboss filter
-        if(recieved_tile_info.filter_to_apply == 1){
-            ApplySobel(&recieved_tile_info);
+        //Apply both sobel and emboss filters
+        ApplySobel(&recieved_tile_info, &sobel_filtered);
+        ApplyEmboss(&recieved_tile_info, &emboss_filtered);
 
-            //Send info about pixels back to master
-            MPI_Send(
-                &recieved_tile_info,//Pointer to the data I want to send
-                sizeof(TileInfo),   //number of items in buf
-                MPI_BYTE,           //The datatype of what I am sending
-                0,            //The ID/world_rank of the process I am sending to
-                3,                  //Tag
-                MPI_COMM_WORLD      //communicator (usually MPI_COMM_WORLD)
-            );
 
-            //Send actuall pixels to process
-            MPI_Send(
-                recieved_tile_info.pixels,  //Pointer to the data I want to send
-                (recieved_tile_info.height)*recieved_tile_info.width * sizeof(PixelInfo),   //number of items in buf
-                MPI_BYTE,                   //The datatype of what I am sending
-                0,                    //The ID/world_rank of the process I am sending to
-                4,                          //Tag
-                MPI_COMM_WORLD              //communicator (usually MPI_COMM_WORLD)
-            );
+        //Send sobel pixels back to master
+        MPI_Send(
+            sobel_filtered,  //Pointer to the data I want to send
+            (recieved_tile_info.height)*recieved_tile_info.width * sizeof(PixelInfo),   //number of items in buf
+            MPI_BYTE,                   //The datatype of what I am sending
+            0,                    //The ID/world_rank of the process I am sending to
+            4,                          //Tag
+            MPI_COMM_WORLD              //communicator (usually MPI_COMM_WORLD)
+        );
+
+        //Send emboss pixels back to master
+        MPI_Send(
+            recieved_tile_info.pixels,  //Pointer to the data I want to send
+            (recieved_tile_info.height)*recieved_tile_info.width * sizeof(PixelInfo),   //number of items in buf
+            MPI_BYTE,                   //The datatype of what I am sending
+            0,                    //The ID/world_rank of the process I am sending to
+            4,                          //Tag
+            MPI_COMM_WORLD              //communicator (usually MPI_COMM_WORLD)
+        );
 
         }
     }

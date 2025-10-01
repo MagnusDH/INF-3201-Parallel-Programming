@@ -1,29 +1,59 @@
+#Compiler and MPI executables
+CC=gcc
+MPICC=$(shell which mpicc)
+MPIRUN=$(shell which mpirun)
+
+
+
+
+
 # Number of processes:
 N=6
+
 # Change this as you like:
-MPIEXEC_OPTS=--oversubscribe
+# MPIEXEC_OPTS=--oversubscribe
+
+#Hostfile -> list of cluster nodes 
+HOSTFILE = hostfile
+
+all: main
 
 
-#Name of the output file
-# AVAILABLE_NODES = available_nodes.txt
-
-#This line is run if "make" has been typed in the terminal
-all:
-	@echo -e "\nCreating hostfile\n"
-	/share/ifi/available-nodes.sh > available_nodes.txt
+#Build main program
+main: main.c lib/libbmp/libbmp.c lib/bmp.c
+	@mpicc -o $@ $^ -lm
+#	Create hostfile
+	@/share/ifi/available-nodes.sh > $(HOSTFILE)
 
 
-# main: main.c lib/libbmp/libbmp.c lib/bmp.c
-# 	mpicc -o $@ $^ -lm
+#Run code on cluster
+run_cluster: main
+	@echo -e "\nRunning code on cluster...\n"
+	@$(MPIRUN) --hostfile $(HOSTFILE) -np $(N) ./main
 
-# run: main
-# 	mpiexec -n $(N) $(MPIEXEC_OPTS) ./main
+
+# 	@$(MPIRUN) --hostfile $(HOSTFILE) -np $(N) $(MPIEXEC_OPTS) ./main
+
+
+# 	@mpiexec -n $(N) --hostfile $(HOSTFILE) $(MPIEXEC_OPTS) ./main
+
+
+#Run code locally
+run_local: main
+	@echo -e "\nMAKEFILE -> 'run_local:' is being run\n"
+
+	@echo -e "\nRunning code locally...\n"
+
+	@mpiexec -n $(N) $(MPIEXEC_OPTS) ./main
+
+# 	@mpiexec -n $(N) $(MPIEXEC_OPTS) ./main
+
 
 clean:
-# # 	@rm main
-	@rm -f available_nodes.txt
+	@rm main
+	@rm -f hostfile
 
-# .PHONY: clean
+.PHONY: clean
 
 
 

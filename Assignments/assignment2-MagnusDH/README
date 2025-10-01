@@ -38,3 +38,48 @@ Starter code for assignment 2
  - Once this version is implemented, you should propose (at least one) optimization to your code. 
     Each optimization should be backed up by evaluations, against the initial parallel version
 
+- Assignment text didn't say anything about running the code on more or less nodes thatn 6. So the version only works for 1,2,3,4.... nodes beacuse of uneven dividing of the image
+
+
+
+
+
+
+
+!!!!! Remove "filter_to_apply" in tileInfo?
+
+/*
+MPI tags:
+0 = something wrong
+1 = master process sends info about a tile
+2 = master process sends array of pixels
+3 = worker send info about filtered tile back to master
+4 = worker sends array of filtered pixels back to master
+
+
+
+
+4 = complete block/tile data from worker with Sobel filter
+5 = complete block/tile data from worker with Emboss filter
+6 = image is complete, terminate
+*/
+
+
+
+
+
+
+
+
+
+
+01, 02, 03, 04
+05, 06, 07, 08
+09, "10", 11, 12
+13, 14, 15, 16
+
+
+row = 2
+column = 1
+width = 4
+int top_left_index = (((row - 1) * tile.width) + column) - 1;  

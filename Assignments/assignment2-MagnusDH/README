@@ -48,7 +48,6 @@ MPI tags:
 0 = something wrong
 1 = master process sends info about a tile
 2 = master process sends array of pixels
-
 3 = worker sends array of sobel filtered pixels back to master
 4 = worker sends array of emboss filtered pixels back to master
 
@@ -71,8 +70,13 @@ padded_pixels = (w*1) + ((h-1)*2) = 6*1 + (3-1)*2 = 6 + 4 = 10
 00, 12, 13, 14, 15, 00
 00, 00, 00, 00, 00, 00
 
+            int main_pixel_index = ((row * tile->width) + column);
+
+
+image height = 4
+image_width = 4
 row_counter = 1
-column = 1
+column = 2
 
 
 pixels[i].red = sobel[(row_counter-1*image_width) + column_counter-1].red;

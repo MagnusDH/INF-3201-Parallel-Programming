@@ -77,8 +77,6 @@ RGB GetPixel(RGB *img, const int width, const int height, const int x, const int
 -filtered_pixels = buffer to write filtered pixels into
 */
 void ApplySobel(TileInfo *tile, RGB *recieved_pixels, RGB *filtered_pixels){
-    printf("ApplySobel()\n");
-
     //Exclude padding rows when looping
     int i=0;    //Counter for index in "filtered_pixels[]"
     for(int row=1; row<tile->height-1; row++){
@@ -127,9 +125,6 @@ void ApplySobel(TileInfo *tile, RGB *recieved_pixels, RGB *filtered_pixels){
             }
 
             //Write the calculated G value to a new temporary image
-            // filtered_pixels[main_pixel_index].red = G;
-            // filtered_pixels[main_pixel_index].green = G;
-            // filtered_pixels[main_pixel_index].blue = G;
             filtered_pixels[i].red = G;
             filtered_pixels[i].green = G;
             filtered_pixels[i].blue = G;
@@ -140,6 +135,75 @@ void ApplySobel(TileInfo *tile, RGB *recieved_pixels, RGB *filtered_pixels){
 
     return;
 }
+
+/*
+-tile = struct of info about tile
+-pixels = unfiltered pixel values
+-filtered_pixels = buffer to write filtered pixels into
+*/
+void ApplyEmboss(TileInfo *tile, RGB *recieved_pixels, RGB *filtered_pixels){
+
+    //Embos kernel used: https://docs.aspose.com/imaging/net/developer-guide/manipulating-images/kernel-filters/emboss-filter/
+    // { -2, -1,  0}
+    // { -1,  1,  1}
+    // {  0,  1,  2}
+
+
+
+
+
+
+        //Exclude padding rows when looping
+    int i=0;    //Counter for index in "filtered_pixels[]"
+    for(int row=1; row<tile->height-1; row++){
+        //Exclude padding columns when looping
+        for(int column=1; column<tile->width-1; column++){
+            //find kernel
+            int main_pixel_index = ((row * tile->width) + column);
+            int top_left_index = (((row-1) * tile->width) + column) - 1;    
+            int top_middle_index = (((row-1) * tile->width) + column);   
+            int top_right_index = (((row-1) * tile->width) + column) + 1;   
+            int left_index = main_pixel_index - 1;
+            int right_index = main_pixel_index + 1;
+            int bottom_left_index = (((row+1) * tile->width) + column) - 1;
+            int bottom_middle_index = (((row+1) * tile->width) + column);
+            int bottom_right_index = (((row+1) * tile->width) + column) + 1;
+
+            //Get actuall pixel values
+            int main_pixel = recieved_pixels[main_pixel_index].red;
+            int top_left = recieved_pixels[top_left_index].red;    
+            int top_middle = recieved_pixels[top_middle_index].red;   
+            int top_right = recieved_pixels[top_right_index].red;   
+            int left = recieved_pixels[left_index].red;
+            int right = recieved_pixels[right_index].red;
+            int bottom_left = recieved_pixels[bottom_left_index].red;
+            int bottom_middle = recieved_pixels[bottom_middle_index].red;
+            int bottom_right = recieved_pixels[bottom_right_index].red;
+                    
+            //multiply the retrieved pixel values with the correspinding value in the Gx kernel and SUM them
+                int G = (-2*top_left + -1*top_middle + 0*top_right) +
+                        (-1*left + 1*main_pixel + 1*right) +
+                        (0*bottom_left + 1*bottom_middle + 2*bottom_right);
+
+                if(G > 255){
+                    G = 255;
+                }
+                if(G < 0){
+                    G = 0;
+                }
+
+            //Write the calculated G value to a new temporary image
+            filtered_pixels[i].red = G;
+            filtered_pixels[i].green = G;
+            filtered_pixels[i].blue = G;
+
+            i++;
+        }
+    }
+
+    return;
+}
+
 
 
 void master_process(int world_rank, int world_size)
@@ -244,27 +308,14 @@ void master_process(int world_rank, int world_size)
 
         sent_tiles++;
         row_counter -= 1;
-
-        
-        // if(process == 1){
-        //     //Save images
-        //     const char *test_sobel="test_sobel.bmp";
-        //     //Create new image
-        //     CreateBMP(test_sobel,tile.width,tile.height);
-        //     WriteRegion(test_sobel,0,0,tile.width,tile.height,pixels);
-        // }
     }
 
 
-    //////GOOD SO FAR ///////////////
-
-
-
-
-
     //Recieve filtered pixels from worker processes
-    int recieved_tiles = 0;
-    while(SOBEL_COMPLETE != true){
+    int recieved_sobel_tiles = 0;
+    int recieved_emboss_tiles = 0;
+
+    while(SOBEL_COMPLETE != true || EMBOSS_COMPLETE != true){
         //Recieve status of incoming message
         MPI_Status message_status;
         MPI_Probe(MPI_ANY_SOURCE, MPI_ANY_TAG, MPI_COMM_WORLD, &message_status);
@@ -287,45 +338,66 @@ void master_process(int world_rank, int world_size)
             MPI_STATUS_IGNORE
         );
 
-        // if(message_status.MPI_SOURCE == 5){
-        //     //Save images
-        //     const char *outsobel="outsobel.bmp";
-        //     //Create new image
-        //     CreateBMP(outsobel,image_width,image_height);
-        //     WriteRegion(outsobel,0,0,image_width,image_height,filtered_pixels);
-        // }
-
-
-        //GOOD SO FAR, pixels are filtered and recieved correctly
-            
-
-        //Assemble the filtered pixels into buffer
-        if(message_status.MPI_SOURCE == 1){
-            for(int i=0; i<message_size; i++){
-                sobel[i].red = filtered_pixels[i].red;
-                sobel[i].green = filtered_pixels[i].green;
-                sobel[i].blue = filtered_pixels[i].blue;
+        //Assemble sobel image
+        if(message_status.MPI_TAG == 3){
+            //Assemble the filtered pixels into buffer
+            if(message_status.MPI_SOURCE == 1){
+                for(int i=0; i<message_size; i++){
+                    sobel[i].red = filtered_pixels[i].red;
+                    sobel[i].green = filtered_pixels[i].green;
+                    sobel[i].blue = filtered_pixels[i].blue;
+                }
             }
-        }
-
-        else{
-            int start_row = (rows_per_process * (message_status.MPI_SOURCE-1)) + excess_rows;
-            int end_row = start_row + rows_per_process;
-            int i = 0;
-            
-            for(int sobel_index=start_row*image_width; sobel_index<image_width*image_height; sobel_index++){
-                sobel[sobel_index].red = filtered_pixels[i].red;
-                sobel[sobel_index].green = filtered_pixels[i].green;
-                sobel[sobel_index].blue = filtered_pixels[i].blue;
-
-                i++;
+            else{
+                int start_row = (rows_per_process * (message_status.MPI_SOURCE-1)) + excess_rows;
+                int end_row = start_row + rows_per_process;
+                int i = 0;
+                
+                for(int sobel_index=start_row*image_width; sobel_index<image_width*image_height; sobel_index++){
+                    sobel[sobel_index].red = filtered_pixels[i].red;
+                    sobel[sobel_index].green = filtered_pixels[i].green;
+                    sobel[sobel_index].blue = filtered_pixels[i].blue;
+    
+                    i++;
+                }
             }
+    
+            recieved_sobel_tiles++;
         }
-
-        recieved_tiles++;
         
-        if(recieved_tiles == sent_tiles){
+        //Assemble emboss image
+        if(message_status.MPI_TAG == 4){
+            //Assemble the filtered pixels into buffer
+            if(message_status.MPI_SOURCE == 1){
+                for(int i=0; i<message_size; i++){
+                    emboss[i].red = filtered_pixels[i].red;
+                    emboss[i].green = filtered_pixels[i].green;
+                    emboss[i].blue = filtered_pixels[i].blue;
+                }
+            }
+    
+            else{
+                int start_row = (rows_per_process * (message_status.MPI_SOURCE-1)) + excess_rows;
+                int end_row = start_row + rows_per_process;
+                int i = 0;
+                
+                for(int emboss_index=start_row*image_width; emboss_index<image_width*image_height; emboss_index++){
+                    emboss[emboss_index].red = filtered_pixels[i].red;
+                    emboss[emboss_index].green = filtered_pixels[i].green;
+                    emboss[emboss_index].blue = filtered_pixels[i].blue;
+    
+                    i++;
+                }
+            }
+    
+            recieved_emboss_tiles++;
+        }
+        
+        if(recieved_sobel_tiles == sent_tiles){
             SOBEL_COMPLETE = true;
+        }
+        if(recieved_emboss_tiles == sent_tiles){
+            EMBOSS_COMPLETE = true;
         }
     }
 
@@ -374,30 +446,14 @@ void worker_process(int world_rank)
         MPI_STATUS_IGNORE
     );
 
-    // if(world_rank == 5){
-    //     for(int i=0; i<tile.height; i++){
-    //         for(int j=0; j<tile.width; j++){
-    //             printf("%d ", recieved_pixels[(i*tile.width)+j].red);
-    //         }
-    //         printf("\n");
-    //     }
-    // }
-
-
-    
-    
-    
-    
     
     //Create buffers to store sobel and emboss filtered pixels, no padding pixels
     RGB *sobel_pixels = malloc((tile.num_pixels - tile.num_padded_pixels)*sizeof(RGB));
+    RGB *emboss_pixels = malloc((tile.num_pixels - tile.num_padded_pixels)*sizeof(RGB));
     
     //Apply both sobel and emboss filters
     ApplySobel(&tile, recieved_pixels, sobel_pixels);
-    
-        
-    //////GOOD SO FAR ///////////////
-
+    ApplyEmboss(&tile, recieved_pixels, emboss_pixels);    
 
     //Send sobel pixels back to master (No ghost tiles)
     MPI_Send(
@@ -406,6 +462,16 @@ void worker_process(int world_rank)
         MPI_BYTE,                                               //The datatype of what I am sending
         0,                                                      //The ID/world_rank of the process I am sending to
         3,                                                      //Tag
+        MPI_COMM_WORLD                                          //communicator (usually MPI_COMM_WORLD)
+    );
+
+    //Send emboss pixels back to master (No ghost tiles)
+    MPI_Send(
+        emboss_pixels,                                         //Pointer to the data I want to send
+        (tile.num_pixels - tile.num_padded_pixels)*sizeof(RGB), //number of items in buf
+        MPI_BYTE,                                               //The datatype of what I am sending
+        0,                                                      //The ID/world_rank of the process I am sending to
+        4,                                                      //Tag
         MPI_COMM_WORLD                                          //communicator (usually MPI_COMM_WORLD)
     );
         

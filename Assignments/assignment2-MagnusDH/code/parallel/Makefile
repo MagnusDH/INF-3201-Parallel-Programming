@@ -14,7 +14,7 @@ N=6
 # MPIEXEC_OPTS=--oversubscribe
 
 #Hostfile -> list of cluster nodes 
-HOSTFILE = hostfile
+# HOSTFILE = hostfile
 
 all: main
 
@@ -23,13 +23,15 @@ all: main
 main: main.c lib/libbmp/libbmp.c lib/bmp.c
 	@mpicc -o $@ $^ -lm
 #	Create hostfile
-	@/share/ifi/available-nodes.sh > $(HOSTFILE)
+# 	@/share/ifi/available-nodes.sh > $(HOSTFILE)
 
 
 #Run code on cluster
 run_cluster: main
 	@echo -e "\nRunning code on cluster...\n"
-	@$(MPIRUN) --hostfile $(HOSTFILE) -np $(N) ./main
+# 	@$(MPIRUN) --hostfile $(HOSTFILE) -np $(N) ./main
+	@$(MPIRUN) -np $(N) ./main
+
 
 
 # 	@$(MPIRUN) --hostfile $(HOSTFILE) -np $(N) $(MPIEXEC_OPTS) ./main
@@ -52,6 +54,9 @@ run_local: main
 clean:
 	@rm main
 	@rm -f hostfile
+	@rm emboss.bmp
+	@rm sobel.bmp
+
 
 .PHONY: clean
 

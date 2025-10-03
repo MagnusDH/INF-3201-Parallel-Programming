@@ -5,6 +5,7 @@
 #include <math.h>
 #include <string.h>
 #include <stdbool.h>
+#include <omp.h>
 
 #define MIN(a,b) ((a) < (b) ? (a) : (b))
 #define MAX(a,b) ((a) < (b) ? (b) : (a))
@@ -80,6 +81,7 @@ void ApplySobel(TileInfo *tile, RGB *recieved_pixels, RGB *filtered_pixels){
     //Exclude padding rows when looping
     int i=0;    //Counter for index in "filtered_pixels[]"
     for(int row=1; row<tile->height-1; row++){
+        // #pragma omp parallel for //collapse(2)
         //Exclude padding columns when looping
         for(int column=1; column<tile->width-1; column++){
             //find kernel
@@ -148,14 +150,10 @@ void ApplyEmboss(TileInfo *tile, RGB *recieved_pixels, RGB *filtered_pixels){
     // { -1,  1,  1}
     // {  0,  1,  2}
 
-
-
-
-
-
-        //Exclude padding rows when looping
+    //Exclude padding rows when looping
     int i=0;    //Counter for index in "filtered_pixels[]"
     for(int row=1; row<tile->height-1; row++){
+        // #pragma omp parallel for //collapse(2)
         //Exclude padding columns when looping
         for(int column=1; column<tile->width-1; column++){
             //find kernel
@@ -350,7 +348,6 @@ void master_process(int world_rank, int world_size)
             }
             else{
                 int start_row = (rows_per_process * (message_status.MPI_SOURCE-1)) + excess_rows;
-                int end_row = start_row + rows_per_process;
                 int i = 0;
                 
                 for(int sobel_index=start_row*image_width; sobel_index<image_width*image_height; sobel_index++){
@@ -378,7 +375,6 @@ void master_process(int world_rank, int world_size)
     
             else{
                 int start_row = (rows_per_process * (message_status.MPI_SOURCE-1)) + excess_rows;
-                int end_row = start_row + rows_per_process;
                 int i = 0;
                 
                 for(int emboss_index=start_row*image_width; emboss_index<image_width*image_height; emboss_index++){
@@ -408,7 +404,7 @@ void master_process(int world_rank, int world_size)
     //Create new images
     CreateBMP(outsobel, image_width, image_height);
     WriteRegion(outsobel, 0, 0, image_width, image_height, sobel);
-        
+
     CreateBMP(outemboss, image_width, image_height);
     WriteRegion(outemboss, 0, 0, image_width, image_height, emboss);
 

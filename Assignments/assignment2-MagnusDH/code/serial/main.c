@@ -3,6 +3,8 @@
 #include "lib/bmp.h"
 #include <math.h>
 #include <string.h>
+#include <time.h>
+
 
 #define MIN(a,b) ((a) < (b) ? (a) : (b))
 #define MAX(a,b) ((a) < (b) ? (b) : (a))
@@ -215,6 +217,11 @@ int main(){
     const char *outsobel="sobel.bmp";
     const char *outemboss="emboss.bmp";
 
+    //Initialize a clock to measure the time used to open the lock
+	clock_t clock_start;
+	clock_t clock_end;
+	double time_used;
+    clock_start = clock();
 
     //Get image dimensions and store them in width, height
     int width, height;
@@ -242,6 +249,12 @@ int main(){
     //Free memory
     free(sobel);
     free(emboss);
+
+    //End clock and print result
+	clock_end = clock();
+    //Calculate how much time was used and convert the result type to "double" to show decimals
+	time_used = (double) (clock_end - clock_start) / CLOCKS_PER_SEC;
+	printf("Time used to apply filters: %f seconds\n", time_used);
 
     return(0);
 }

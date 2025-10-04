@@ -11,25 +11,13 @@
 #define MAX(a,b) ((a) < (b) ? (b) : (a))
 #define GP(X,Y) GetPixel(img, width, height,(X),(Y))
 
-//Contains info about a single pixel
-// typedef struct {
-//     int row;
-//     int col;
-//     unsigned char red;
-//     unsigned char green;
-//     unsigned char blue;
-// } PixelInfo;
-
 
 //Contains info about a whole tile
 typedef struct {
-    // int tile_number;
     int width;                      //How many pixels in width the tile is
     int height;                     //How many rows the tile is
     int num_pixels;                 //How many pixels are contained in the tile
     int num_padded_pixels;
-    // int top_ghost;                  //1 if top ghost row is included, 0 if not 
-    // int bottom_ghost;               //1 if bottom ghost row is included, 0 if not
 } TileInfo;
 
 bool SOBEL_COMPLETE = false;
@@ -72,53 +60,120 @@ RGB GetPixel(RGB *img, const int width, const int height, const int x, const int
 	return(img[x+y*width]);
 }
 
+
 /*
 -tile = struct of info about tile
 -pixels = unfiltered pixel values
 -filtered_pixels = buffer to write filtered pixels into
 */
-void ApplySobel(TileInfo *tile, RGB *recieved_pixels, RGB *filtered_pixels){
+void ApplySobel(TileInfo *tile, RGB *received_pixels, RGB *filtered_pixels){
+
+    int width = tile->width;
+    int height = tile->height;
+
+    // Parallelize both row and column loops
+    #pragma omp parallel for collapse(2)
     //Exclude padding rows when looping
-    int i=0;    //Counter for index in "filtered_pixels[]"
-    for(int row=1; row<tile->height-1; row++){
-        // #pragma omp parallel for //collapse(2)
+    for (int row=1; row<height-1; row++){
         //Exclude padding columns when looping
-        for(int column=1; column<tile->width-1; column++){
+        for (int col=1; col<width-1; col++){
             //find kernel
-            int main_pixel_index = ((row * tile->width) + column);
-            int top_left_index = (((row-1) * tile->width) + column) - 1;    
-            int top_middle_index = (((row-1) * tile->width) + column);   
-            int top_right_index = (((row-1) * tile->width) + column) + 1;   
-            int left_index = main_pixel_index - 1;
-            int right_index = main_pixel_index + 1;
-            int bottom_left_index = (((row+1) * tile->width) + column) - 1;
-            int bottom_middle_index = (((row+1) * tile->width) + column);
-            int bottom_right_index = (((row+1) * tile->width) + column) + 1;
+            int main_pixel_index = row * width + col;
+            int top_left_index = (row - 1) * width + col - 1;
+            int top_middle_index = (row - 1) * width + col;
+            int top_right_index = (row - 1) * width + col + 1;
+            int left_index = row * width + col - 1;
+            int right_index = row * width + col + 1;
+            int bottom_left_index = (row + 1) * width + col - 1;
+            int bottom_middle_index = (row + 1) * width + col;
+            int bottom_right_index = (row + 1) * width + col + 1;
 
             //Get actuall pixel values
-            int main_pixel = recieved_pixels[main_pixel_index].red;
-            int top_left = recieved_pixels[top_left_index].red;    
-            int top_middle = recieved_pixels[top_middle_index].red;   
-            int top_right = recieved_pixels[top_right_index].red;   
-            int left = recieved_pixels[left_index].red;
-            int right = recieved_pixels[right_index].red;
-            int bottom_left = recieved_pixels[bottom_left_index].red;
-            int bottom_middle = recieved_pixels[bottom_middle_index].red;
-            int bottom_right = recieved_pixels[bottom_right_index].red;
-                    
+            int top_left = received_pixels[top_left_index].red;
+            int top_middle = received_pixels[top_middle_index].red;
+            int top_right = received_pixels[top_right_index].red;
+            int left  = received_pixels[left_index].red;
+            int main_pixel  = received_pixels[main_pixel_index].red;
+            int right  = received_pixels[right_index].red;
+            int bottom_left = received_pixels[bottom_left_index].red;
+            int bottom_middle = received_pixels[bottom_middle_index].red;
+            int bottom_right = received_pixels[bottom_right_index].red;
+
             //multiply the retrieved pixel values with the correspinding value in the Gx kernel and SUM them
-            int Gx_value =  (-1*top_left + 0*top_middle + 1*top_right) +
-                            (-2*left + 0*main_pixel + 2*right) +
-                            (-1*bottom_left + 0*bottom_middle + 1*bottom_right);
-        
-        
+            int Gx = (-1 * top_left) + (0 * top_middle) + (1 * top_right)
+                   + (-2 * left)  + (0 * main_pixel)  + (2 * right)
+                   + (-1 * bottom_left) + (0 * bottom_middle) + (1 * bottom_right);
+
             //multiply the retrieved pixel values with the correspinding value in the Gy kernel and SUM them
-            int Gy_value =  (1*top_left + 2*top_middle + 1*top_right) +
-                            (0*left + 0*main_pixel + 0*right) +
-                            (-1*bottom_left + -2*bottom_middle + -1*bottom_right);
+            int Gy = ( 1 * top_left) + (2 * top_middle) + (1 * top_right)
+                   + ( 0 * left)  + (0 * main_pixel)  + (0 * right)
+                   + (-1 * bottom_left) + (-2 * bottom_middle) + (-1 * bottom_right);
 
             //Compute the final pixel value 
-            int G = (int) sqrt((pow(Gx_value, 2)) + (pow(Gy_value, 2)));
+            int G = (int) sqrt(pow(Gx,2) + pow(Gy, 2));
+
+            if (G > 255) G = 255;
+            else if (G < 0) G = 0;
+
+            //Write the calculated G value to a new temporary image
+            int filtered_index = (row - 1) * (width - 2) + (col - 1);
+            filtered_pixels[filtered_index].red   = G;
+            filtered_pixels[filtered_index].green = G;
+            filtered_pixels[filtered_index].blue  = G;
+        }
+    }
+}
+
+
+/*
+-tile = struct of info about tile
+-pixels = unfiltered pixel values
+-filtered_pixels = buffer to write filtered pixels into
+*/
+void ApplyEmboss(TileInfo *tile, RGB *received_pixels, RGB *filtered_pixels){
+    //Embos kernel used: https://docs.aspose.com/imaging/net/developer-guide/manipulating-images/kernel-filters/emboss-filter/
+    // { -2, -1,  0}
+    // { -1,  1,  1}
+    // {  0,  1,  2}
+
+    int width = tile->width;
+    int height = tile->height;
+
+    //Parallelize using openMP
+    #pragma omp parallel for collapse(2)
+    //Exclude padding rows when looping
+    for (int row = 1; row < height - 1; row++){
+        //Exclude padding columns when looping
+        for (int col = 1; col < width - 1; col++){
+
+            //find kernel
+            int main_pixel_index = row * width + col;
+            int top_left_index = (row - 1) * width + col - 1;
+            int top_middle_index = (row - 1) * width + col;
+            int top_right_index = (row - 1) * width + col + 1;
+            int left_index = row * width + col - 1;
+            int right_index = row * width + col + 1;
+            int bottom_left_index = (row + 1) * width + col - 1;
+            int bottom_middle_index = (row + 1) * width + col;
+            int bottom_right_index = (row + 1) * width + col + 1;
+            
+            //Get actuall pixel values
+            int main_pixel = received_pixels[main_pixel_index].red;
+            int top_left = received_pixels[top_left_index].red;    
+            int top_middle = received_pixels[top_middle_index].red;   
+            int top_right = received_pixels[top_right_index].red;   
+            int left = received_pixels[left_index].red;
+            int right = received_pixels[right_index].red;
+            int bottom_left = received_pixels[bottom_left_index].red;
+            int bottom_middle = received_pixels[bottom_middle_index].red;
+            int bottom_right = received_pixels[bottom_right_index].red;
+
+
+            //multiply the retrieved pixel values with the correspinding value in the Gx kernel and SUM them
+            int G = (-2 * top_left) + (-1 * top_middle) + (0 * top_right) +
+                    (-1 * left) + (1 * main_pixel) + (1 * right) +
+                    (0 * bottom_left) + (1 * bottom_middle) + (2 * bottom_right);
+
             if(G > 255){
                 G = 255;
             }
@@ -127,81 +182,13 @@ void ApplySobel(TileInfo *tile, RGB *recieved_pixels, RGB *filtered_pixels){
             }
 
             //Write the calculated G value to a new temporary image
-            filtered_pixels[i].red = G;
-            filtered_pixels[i].green = G;
-            filtered_pixels[i].blue = G;
-
-            i++;
+            int filtered_index = (row - 1) * (width - 2) + (col - 1);
+            filtered_pixels[filtered_index].red   = G;
+            filtered_pixels[filtered_index].green = G;
+            filtered_pixels[filtered_index].blue  = G;
         }
     }
-
-    return;
 }
-
-/*
--tile = struct of info about tile
--pixels = unfiltered pixel values
--filtered_pixels = buffer to write filtered pixels into
-*/
-void ApplyEmboss(TileInfo *tile, RGB *recieved_pixels, RGB *filtered_pixels){
-
-    //Embos kernel used: https://docs.aspose.com/imaging/net/developer-guide/manipulating-images/kernel-filters/emboss-filter/
-    // { -2, -1,  0}
-    // { -1,  1,  1}
-    // {  0,  1,  2}
-
-    //Exclude padding rows when looping
-    int i=0;    //Counter for index in "filtered_pixels[]"
-    for(int row=1; row<tile->height-1; row++){
-        // #pragma omp parallel for //collapse(2)
-        //Exclude padding columns when looping
-        for(int column=1; column<tile->width-1; column++){
-            //find kernel
-            int main_pixel_index = ((row * tile->width) + column);
-            int top_left_index = (((row-1) * tile->width) + column) - 1;    
-            int top_middle_index = (((row-1) * tile->width) + column);   
-            int top_right_index = (((row-1) * tile->width) + column) + 1;   
-            int left_index = main_pixel_index - 1;
-            int right_index = main_pixel_index + 1;
-            int bottom_left_index = (((row+1) * tile->width) + column) - 1;
-            int bottom_middle_index = (((row+1) * tile->width) + column);
-            int bottom_right_index = (((row+1) * tile->width) + column) + 1;
-
-            //Get actuall pixel values
-            int main_pixel = recieved_pixels[main_pixel_index].red;
-            int top_left = recieved_pixels[top_left_index].red;    
-            int top_middle = recieved_pixels[top_middle_index].red;   
-            int top_right = recieved_pixels[top_right_index].red;   
-            int left = recieved_pixels[left_index].red;
-            int right = recieved_pixels[right_index].red;
-            int bottom_left = recieved_pixels[bottom_left_index].red;
-            int bottom_middle = recieved_pixels[bottom_middle_index].red;
-            int bottom_right = recieved_pixels[bottom_right_index].red;
-                    
-            //multiply the retrieved pixel values with the correspinding value in the Gx kernel and SUM them
-                int G = (-2*top_left + -1*top_middle + 0*top_right) +
-                        (-1*left + 1*main_pixel + 1*right) +
-                        (0*bottom_left + 1*bottom_middle + 2*bottom_right);
-
-                if(G > 255){
-                    G = 255;
-                }
-                if(G < 0){
-                    G = 0;
-                }
-
-            //Write the calculated G value to a new temporary image
-            filtered_pixels[i].red = G;
-            filtered_pixels[i].green = G;
-            filtered_pixels[i].blue = G;
-
-            i++;
-        }
-    }
-
-    return;
-}
-
 
 
 void master_process(int world_rank, int world_size)
@@ -497,8 +484,17 @@ int main()
 	
 	// Do different work if process is MASTER_PROCESS or worker_process
 	if(world_rank == 0){
+        //Start a clock to measure the time used to open the lock
+		double start_time, end_time, time_used;
+		start_time = MPI_Wtime();
+
         //Start master process
 		master_process(world_rank, world_size);
+
+        //End clock and print result
+		end_time = MPI_Wtime();
+    	time_used = end_time - start_time;
+    	printf("Time used to apply filters: %f seconds\n", time_used);	
 	}
 	else{
         //Start worker processes

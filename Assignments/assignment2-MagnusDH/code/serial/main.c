@@ -62,7 +62,10 @@ void ApplySobel(RGB *img, const int width, const int height){
             if(row == 0 || row == height-1 || col == 0 || col == width-1){
                 //Do something special, becuase its a border pixel
                 int main_pixel_index = ((row * width) + col);
-                out_img[main_pixel_index] = img[main_pixel_index];
+                // out_img[main_pixel_index] = img[main_pixel_index];
+                out_img[main_pixel_index].red = 0;
+                out_img[main_pixel_index].green = 0;
+                out_img[main_pixel_index].blue = 0;
             }        
 
             //Pixel is not corner pixel
@@ -148,7 +151,10 @@ void ApplyEmboss(RGB *img, const int width, const int height){
             if(row == 0 || row == height-1 || col == 0 || col == width-1){
                 //Do something special, becuase its a border pixel
                 int main_pixel_index = ((row * width) + col);
-                out_img[main_pixel_index] = img[main_pixel_index];
+                // out_img[main_pixel_index] = img[main_pixel_index];
+                out_img[main_pixel_index].red = 0;
+                out_img[main_pixel_index].green = 0;
+                out_img[main_pixel_index].blue = 0;
             }        
 
             //Pixel is not corner pixel

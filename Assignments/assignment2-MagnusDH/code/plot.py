@@ -18,8 +18,8 @@ plt.plot(nodes, openMP, 'o-', color='red', label='Parallel with openMP', linewid
 plt.axhline(y=sequential, color='blue', linestyle='-', linewidth=2, label='Sequential')
 
 # Labels and formatting
-plt.title('Execution Time vs Number of Processes/Threads')
-plt.xlabel('Number of Processes / Threads')
+plt.title('Execution Time vs Number of Processes')
+plt.xlabel('Number of Processes')
 plt.ylabel('Execution Time (seconds)')
 plt.legend()
 plt.grid(True, linestyle='--', alpha=0.6)

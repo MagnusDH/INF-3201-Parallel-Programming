@@ -244,7 +244,7 @@ void master_process(int world_rank, int world_size)
         
         for(int i=0; i<tile.num_pixels; i++){
             // printf("Row_counter: %d, image_height: %d\n", row_counter, image_height);
-            //Create padding at top, bottom and sides, but not for 
+            //Create padding at top, bottom and sides 
             if(row_counter == 0 || column_counter == 0 || column_counter == tile.width-1 || ((row_counter-(world_size-1)) == image_height)){
                 pixels[i].red = 0;
                 pixels[i].green = 0;
@@ -480,7 +480,7 @@ int main()
 	char hostname[MPI_MAX_PROCESSOR_NAME];
 	int name_len;
 	MPI_Get_processor_name(hostname, &name_len);
-	// printf("I am process %d - running on node %s\n", world_rank, hostname);
+	printf("I am process %d - running on node %s\n", world_rank, hostname);
 	
 	// Do different work if process is MASTER_PROCESS or worker_process
 	if(world_rank == 0){

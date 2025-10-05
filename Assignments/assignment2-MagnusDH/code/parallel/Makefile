@@ -38,6 +38,9 @@ run_parallel: main
 run_openMP: mainMP
 	@mpiexec -n $(N) --hostfile $(HOSTFILE) $(MPIEXEC_OPTS) ./mainMP
 
+# 	@mpiexec -np $(N) ./mainMP
+
+
 
 #Run code locally
 run_local: main

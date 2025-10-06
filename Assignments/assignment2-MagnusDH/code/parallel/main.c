@@ -11,6 +11,15 @@
 #define MAX(a,b) ((a) < (b) ? (b) : (a))
 #define GP(X,Y) GetPixel(img, width, height,(X),(Y))
 
+/*
+MPI tags:
+0 = something wrong
+1 = master process sends info about a tile
+2 = master process sends array of pixels
+3 = worker sends array of sobel filtered pixels back to master
+4 = worker sends array of emboss filtered pixels back to master
+*/
+
 
 //Contains info about a whole tile
 typedef struct {
@@ -193,6 +202,10 @@ void ApplyEmboss(TileInfo *tile, RGB *received_pixels, RGB *filtered_pixels){
 
 void master_process(int world_rank, int world_size)
 {
+    //Start a clock to measure the time used to open the lock
+	// double start_time, end_time, time_used;
+	// start_time = MPI_Wtime();
+
     //Define variables
     const char *marguerite="../../images/marguerite.bmp";
 
@@ -295,11 +308,19 @@ void master_process(int world_rank, int world_size)
         row_counter -= 1;
     }
 
+    //End clock and print result
+	// end_time = MPI_Wtime();
+    // time_used = end_time - start_time;
+    // printf("master used: %f seconds to send tiles\n", time_used);	
+
 
     //Recieve filtered pixels from worker processes
     int recieved_sobel_tiles = 0;
     int recieved_emboss_tiles = 0;
 
+    //Start a clock to measure the time used to open the lock
+	// start_time, end_time, time_used;
+	// start_time = MPI_Wtime();
     while(SOBEL_COMPLETE != true || EMBOSS_COMPLETE != true){
         //Recieve status of incoming message
         MPI_Status message_status;
@@ -384,6 +405,15 @@ void master_process(int world_rank, int world_size)
         }
     }
 
+    //End clock and print result
+	// end_time = MPI_Wtime();
+    // time_used = end_time - start_time;
+    // printf("master used: %f seconds to recieve and assemble tiles\n", time_used);
+
+
+     //Start a clock to measure the time used to open the lock
+	// start_time, end_time, time_used;
+	// start_time = MPI_Wtime();
     //Save images
     const char *outsobel="sobel.bmp";
     const char *outemboss="emboss.bmp";
@@ -399,12 +429,19 @@ void master_process(int world_rank, int world_size)
     free(sobel);
     free(emboss);
 
+    //End clock and print result
+	// end_time = MPI_Wtime();
+    // time_used = end_time - start_time;
+    // printf("master used: %f seconds to create images\n", time_used);
+
     return;
 }    
     
 
 void worker_process(int world_rank)
 {  
+    // double start_time, end_time, time_used;
+	// start_time = MPI_Wtime();
     //Recieve info about tile
     TileInfo tile;
     MPI_Recv(
@@ -457,6 +494,11 @@ void worker_process(int world_rank)
         4,                                                      //Tag
         MPI_COMM_WORLD                                          //communicator (usually MPI_COMM_WORLD)
     );
+
+    //End clock and print result
+	// end_time = MPI_Wtime();
+    // time_used = end_time - start_time;
+    // printf("process %d used to apply filters: %f seconds\n", world_rank, time_used);
         
     return;
 }
@@ -480,21 +522,21 @@ int main()
 	char hostname[MPI_MAX_PROCESSOR_NAME];
 	int name_len;
 	MPI_Get_processor_name(hostname, &name_len);
-	printf("I am process %d - running on node %s\n", world_rank, hostname);
+	// printf("I am process %d - running on node %s\n", world_rank, hostname);
 	
 	// Do different work if process is MASTER_PROCESS or worker_process
 	if(world_rank == 0){
         //Start a clock to measure the time used to open the lock
-		double start_time, end_time, time_used;
-		start_time = MPI_Wtime();
+		// double start_time, end_time, time_used;
+		// start_time = MPI_Wtime();
 
         //Start master process
 		master_process(world_rank, world_size);
 
         //End clock and print result
-		end_time = MPI_Wtime();
-    	time_used = end_time - start_time;
-    	printf("Time used to apply filters: %f seconds\n", time_used);	
+		// end_time = MPI_Wtime();
+    	// time_used = end_time - start_time;
+    	// printf("Time used to apply filters: %f seconds\n", time_used);	
 	}
 	else{
         //Start worker processes
